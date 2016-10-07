@@ -1,0 +1,38 @@
+% DOMAIN PID ID
+% DOMAIN CID ID
+% TABLE Person PID String String String
+% TABLE Course CID String
+% TABLE Tutor PID CID
+% TABLE Lecturer PID CID
+% COLNAMES Person id firstname lastname abbr
+% COLNAMES Course id name
+% KEY Person Person pid * * *
+% KEY Course Course cid *
+% REFERENCE TutorPerson Tutor pid * => Person pid * * *
+% REFERENCE LecturerPerson Lecturer pid * => Person pid * * *
+
+Person: dictOf object (pid fn ln abbr) (Person pid fn ln abbr)
+    _key_: value pid
+    _val_: object () () 
+        id: value pid
+        firstname: value fn
+        lastname: value ln
+        abbr: value abbr
+        lecturing: dictOf reference (cid) (Lecturer pid cid)
+            _key_: value cid
+            _val_: reference Course[cid]
+        tutoring: setOf reference (cid) (Tutor pid cid)
+            _key_: value cid
+            _val_: reference Course[cid]
+
+Course: dictOf object (cid name) (Course cid name)
+    _key_: value cid
+    _val_: object () ()
+        id: value cid
+        name: value name
+        lecturer: dictOf reference (pid) (Lecturer pid cid)
+            _key_: value pid
+            _val_: reference Person[pid]
+        tutor: dictOf reference (pid) (Tutor pid cid)
+            _key_: value pid
+            _val_: reference Course[cid]
