@@ -11,28 +11,36 @@
 % REFERENCE TutorPerson Tutor pid * => Person pid * * *
 % REFERENCE LecturerPerson Lecturer pid * => Person pid * * *
 
-Person: dictOf object (pid fn ln abbr) (Person pid fn ln abbr)
+Person: dict for (pid fn ln abbr) (Person pid fn ln abbr)
     _key_: value pid
-    _val_: object () () 
+    _val_: struct
         id: value pid
         firstname: value fn
         lastname: value ln
         abbr: value abbr
-        lecturing: dictOf reference (cid) (Lecturer pid cid)
+        lecturing: dict for (cid) (Lecturer pid cid)
             _key_: value cid
             _val_: reference Course[cid]
-        tutoring: setOf reference (cid) (Tutor pid cid)
+        tutoring: dict for (cid) (Tutor pid cid)
             _key_: value cid
             _val_: reference Course[cid]
 
-Course: dictOf object (cid name) (Course cid name)
+Course: dict for (cid name) (Course cid name)
     _key_: value cid
-    _val_: object () ()
+    _val_: struct
         id: value cid
         name: value name
-        lecturer: dictOf reference (pid) (Lecturer pid cid)
-            _key_: value pid
+        lecturer: list for (pid) (Lecturer pid cid)
             _val_: reference Person[pid]
-        tutor: dictOf reference (pid) (Tutor pid cid)
-            _key_: value pid
-            _val_: reference Course[cid]
+        tutor: list for (pid) (Tutor pid cid)
+            _val_: reference Person[pid]
+
+Tutor: set for (pid cid) (Tutor pid cid)
+    _val_: struct
+        person: value pid
+        course: value cid
+
+Lecturer: set for (pid cid) (Lecturer pid cid)
+    _val_: struct
+        person: value pid
+        course: value cid
