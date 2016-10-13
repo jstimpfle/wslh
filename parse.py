@@ -1,42 +1,63 @@
 """Just looking for a possible implementation of WSL-H"""
 
+import collections
 import re
 
 
-class ParseError(Exception):
+class StructuralType:
     pass
 
 
-class Line(str):
-    """A line with index information for better error messages"""
-    def __init__(self, string, lineno):
-        str.__init__(string)
-        self.lineno = lineno
+class SimpleValue(StructuralType):
+    def __init__(self, query_variable, query):
+        self.query_variable = query_variable
+        self.query = query
 
-    def __new__(cls, string, lineno):
-        return str.__new__(cls, string)
-
-    def desc(self, i=None):
-        if i is None:
-            return 'line %d' %(self.lineno+1,)
-        else:
-            return 'line %d, character %d' %(self.lineno+1, i+1)
+    def __repr__(self):
+        return str(self.query_variable)
 
 
-def iter_lines(it):
-    for i, line in enumerate(it):
-        yield Line(line, i)
+class Struct(StructuralType):
+    def __init__(self, sub, query):
+        self.sub = sub
+        self.query = query
+
+    def __repr__(self):
+        return str(self.sub)
 
 
-def chardesc(line, i):
-    end = len(line)
-    if i < end:
-        return "'%s'" %(line[i],)
-    else:
-        return '(EOL)'
+class Set(StructuralType):
+    def __init__(self, query_variable, query):
+        assert query is not None
+        self.query_variable = query_variable
+        self.query = query
+
+    def __repr__(self):
+        return str(self.query_variable)
 
 
-class Reference:
+class List(StructuralType):
+    def __init__(self, query_variable, query):
+        assert query is not None
+        self.query_variable = query_variable
+        self.query = query
+
+    def __repr__(self):
+        return str(self.query_variable)
+
+
+class Dict(StructuralType):
+    def __init__(self, key_variable, val_variable, query):
+        assert query is not None
+        self.key_variable = key_variable
+        self.val_variable = val_variable
+        self.query = query
+
+    def __repr__(self):
+        return '(%s => %s)' %(str(self.key_variable), str(self.val_variable))
+
+
+class Reference(StructuralType):
     def __init__(self, name, index=None, child=None):
         """
         Args:
@@ -72,57 +93,82 @@ class Reference:
         return out
 
 
-def parse_space(line, i):
-    if line[i:i+1] != ' ':
-        raise ParseError('Expected space character but found %s at %s' %(chardesc(line, i), line.desc(i)))
-    return i+1
+class ParseError(Exception):
+    pass
 
 
-def parse_identifier(line, i):
-    start = i
-    m = re.match(r'[a-zA-Z_][a-zA-Z0-9_]*', line[i:])
+class Line(str):
+    """A single-line *str* with line number information for better error messages"""
+
+    def __init__(self, string, lineno):
+        str.__init__(string)
+        self.lineno = lineno
+
+    def __new__(cls, string, lineno):
+        return str.__new__(cls, string)
+
+    def desc(self, i=None):
+        if i is None:
+            return 'line %d' %(self.lineno+1,)
+        else:
+            return 'line %d, character %d' %(self.lineno+1, i+1)
+
+
+def iter_lines(it):
+    for i, line in enumerate(it):
+        yield Line(line, i)
+
+
+def parse_sequence(line, i, sequence, typedesc):
+    if not line[i:].startswith(sequence):
+        raise ParseError('Expected "%s" at %s' %(typedesc, line.desc(i)))
+    return i + len(sequence)
+
+
+def parse_regex(line, i, regex, typedesc):
+    m = re.match(regex, line[i:])
     if m is None:
-        raise ParseError('Expected variable but found %s at %s' %(chardesc(line, i), line.desc(start)))
+        raise ParseError('Expected "%s" at %s' %(typedesc, line.desc(i)))
     return i + m.end(0), m.group(0)
 
 
-def parse_key(line, i):
-    start = i
-    end = len(line)
-    while i < end and is_identifierchar(line[i]):
-        i += 1
-    if i == start:
-        raise ParseError('Expected keyword but found %s at %s' %(chardesc(line, i), line.desc(start)))
-    return i, line[start:i]
+def parse_space(line, i):
+    return parse_sequence(line, i, ' ', 'space character')
+
+
+def parse_identifier(line, i):
+    return parse_regex(line, i, r'[a-zA-Z_][a-zA-Z0-9_]*', 'identifier token')
 
 
 def parse_variable(line, i):
-    i, v = parse_identifier(line, i)
-    return i, v
+    return parse_regex(line, i, r'[a-zA-Z][a-zA-Z0-9_]*', 'variable name')
+
+
+def parse_keyword(line, i, keyword, desc):
+    try:
+        i, kw = parse_identifier(line, i)
+    except ParseError as e:
+        raise ParseError('Expected "%s" at %s' %(typedesc, line.desc(i)))
+    if kw != keyword:
+        raise ParseError('Expected "%s" but found identifier "%s" at "%s"', desc, kw, line.desc(i))
+    return i
 
 
 def parse_index(line, i):
     end = len(line)
-    if i == end or line[i] != '[':
-        raise ParseError('Expected opening bracket "[" at %s' %(line.desc(i)))
-    i += 1
-    i, name = parse_variable(line, i)
-    if i == end or line[i] != ']':
-        raise ParseError('Expected closing bracket "]" at %s' %(line.desc(i)))
-    i += 1
+    try:
+        i = parse_sequence(line, i, '[', 'opening bracket "["')
+        i, name = parse_variable(line, i)
+        i = parse_sequence(line, i, ']', 'closing bracket "]"')
+    except ParseError as e:
+        raise ParseError('Expected bracketed index expression at %s' %(line.desc(i))) from e
     return i, name
-
-
-def parse_string(line, i, s):
-    if not line[i:].startswith(s):
-        raise ParseError('Expected string "%s" but found %s at %s' %(s, chardesc(line, i), line.desc(i)))
-    return i + len(s)
 
 
 def parse_identifier_list(line, i, empty_allowed):
     """Parse a list of identifiers in parentheses, like (a b c)"""
     end = len(line)
-    i = parse_string(line, i, '(')
+    i = parse_sequence(line, i, '(', '"(" character')
     vs = []
     while i < end:
         if line[i] == ')':
@@ -131,9 +177,9 @@ def parse_identifier_list(line, i, empty_allowed):
             break
         if vs:
             i = parse_space(line, i)
-        i, v = parse_identifier(line, i)
+        i, v = parse_variable(line, i)
         vs.append(v)
-    i = parse_string(line, i, ')')
+    i = parse_sequence(line, i, ')', '")" character')
     return i, vs
 
 
@@ -177,9 +223,7 @@ def parse_member_variable(line, i):
 
 
 def parse_query(line, i):
-    i, w = parse_identifier(line, i)
-    if w != 'for':
-        raise ParseError('Expected (optional) "for" keyword following member type decl in line %s at %s' %(line, line.desc(i)))
+    i = parse_keyword(line, i, 'for', '(option) "for" keyword')
     i = parse_space(line, i)
     i, vs = parse_freevars(line, i)
     i = parse_space(line, i)
@@ -216,9 +260,8 @@ def parse_line(line):
     except ParseError as e:
         raise ParseError('Expected a "member: declaration" line at %s' %(line.desc())) from e
 
-    if line[i:i+2] != ': ':
-        raise ParseError('Expected ": " after the member name at %s' %(line.desc(i)))
-    i += 2
+    i = parse_sequence(line, i, ':', '":" after member name')
+    i = parse_space(line, i)
 
     try:
         i, membertype = parse_member_type(line, i)
@@ -243,12 +286,17 @@ def parse_line(line):
     return indent, membername, membertype, membervariable, query, line
 
 
-def parse_dict(lines, li=None, curindent=None):
+def parse_lines(lines):
+    return [parse_line(line) for line in iter_lines(lines) if line]
+
+
+def parse_tree(lines, li=None, curindent=None):
     if li is None:
         li = 0
     if curindent is None:
         curindent = 0
-    x = {}
+
+    x = collections.OrderedDict()
     while li < len(lines):
         indent, membername, membertype, membervariable, query, line = lines[li]
 
@@ -256,26 +304,54 @@ def parse_dict(lines, li=None, curindent=None):
             break
         if indent > curindent:
             raise ParseError('Wrong amount of indentation (need %d) at %s' %(curindent, line.desc()))
+
         if membertype in ["struct", "set", "list", "dict"]:
-            li, sub = parse_dict(lines, li+1, curindent + 4)
-            if not sub:
-                raise ParseError('Empty %s at %s' %(membertype, line.desc()))
-            spec = membertype, sub, query
+            assert membervariable is None
+            li, sub = parse_tree(lines, li+1, curindent + 4)
+
+            if membertype == "struct":
+                for x in (x for x in sub.keys() if x.startswith('_')):
+                    raise ParseError('Struct member at %s: child %s: must not start with underscore' %(line.desc(), x))
+                spec = Struct(sub, query)
+
+            elif membertype == "set":
+                if set(sub) != set(['_val_']):
+                    raise ParseError('Set member at %s: Need _val_ child (and no more)' %(line.desc(),))
+                spec = Set(sub['_val_'], query)
+
+            elif membertype == "list":
+                if set(sub) != set(['_val_']):
+                    raise ParseError('List member at %s: Need _val_ child (and no more)' %(line.desc(),))
+                spec = List(sub['_val_'], query)
+
+            elif membertype == "dict":
+                if set(sub) != set(['_key_', '_val_']):
+                    raise ParseError('Dict member at %s: Need _key_ and _val_ childs (and no more)' %(line.desc(), sub))
+                spec = Dict(sub['_key_'], sub['_val_'], query)
+
         else:
-            spec = membertype, membervariable, query
+            assert membervariable is not None
+
+            if membertype == "value":
+                spec = SimpleValue(membervariable, query)
+
+            elif membertype == "reference":
+                spec = membervariable  # XXX
+
             li += 1
+
         x[membername] = spec
     return li, x
 
 
 def testit():
-    spec = """
+    spec = """\
 Person: dict for (pid fn ln abbr) (Person pid fn ln abbr)
     _key_: value pid
     _val_: struct
         id: value pid
         firstname: value fn
-        lastname: value ln
+        lastname: value bl
         abbr: value abbr
         lecturing: dict for (cid) (Lecturer pid cid)
             _key_: value cid
@@ -305,20 +381,17 @@ Lecturer: set for (pid cid) (Lecturer pid cid)
         course: value cid
 """
 
-    parsed_lines = []
-    for line in list(iter_lines(spec.splitlines())):
-        if line:
-            parsed_lines.append(parse_line(line))
-
+    parsed_lines = parse_lines(spec.splitlines())
     print('Lines:')
     print()
     print(parsed_lines)
     print()
 
-    _, bar = parse_dict(parsed_lines)
+    _, bar = parse_tree(parsed_lines)
     print('Tree:')
     print()
     print(bar)
+    print()
 
 
 if __name__ == '__main__':
