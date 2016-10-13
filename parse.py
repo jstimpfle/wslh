@@ -7,6 +7,27 @@ class ParseError(Exception):
     pass
 
 
+class Line(str):
+    """A line with index information for better error messages"""
+    def __init__(self, string, lineno):
+        str.__init__(string)
+        self.lineno = lineno
+
+    def __new__(cls, string, lineno):
+        return str.__new__(cls, string)
+
+    def desc(self, i=None):
+        if i is None:
+            return 'line %d' %(self.lineno+1,)
+        else:
+            return 'line %d, character %d' %(self.lineno+1, i+1)
+
+
+def iter_lines(it):
+    for i, line in enumerate(it):
+        yield Line(line, i)
+
+
 def chardesc(line, i):
     end = len(line)
     if i < end:
@@ -53,7 +74,7 @@ class Reference:
 
 def parse_space(line, i):
     if line[i:i+1] != ' ':
-        raise ParseError('Expected space character but found %s at line %s, character %d' %(chardesc(line, i), line, i))
+        raise ParseError('Expected space character but found %s at %s' %(chardesc(line, i), line.desc(i)))
     return i+1
 
 
@@ -61,8 +82,7 @@ def parse_identifier(line, i):
     start = i
     m = re.match(r'[a-zA-Z_][a-zA-Z0-9_]*', line[i:])
     if m is None:
-        raise ParseError('Expected variable but found %s at line %s, character %d'
-                            %(chardesc(line, i), line, start))
+        raise ParseError('Expected variable but found %s at %s' %(chardesc(line, i), line.desc(start)))
     return i + m.end(0), m.group(0)
 
 
@@ -72,7 +92,7 @@ def parse_key(line, i):
     while i < end and is_identifierchar(line[i]):
         i += 1
     if i == start:
-        raise ParseError('Expected keyword but found %s character at line %s, character %d' %(chardesc(line, i), line, start))
+        raise ParseError('Expected keyword but found %s at %s' %(chardesc(line, i), line.desc(start)))
     return i, line[start:i]
 
 
@@ -84,18 +104,18 @@ def parse_variable(line, i):
 def parse_index(line, i):
     end = len(line)
     if i == end or line[i] != '[':
-        raise ParseError('Expected opening bracket "["')
+        raise ParseError('Expected opening bracket "[" at %s' %(line.desc(i)))
     i += 1
     i, name = parse_variable(line, i)
     if i == end or line[i] != ']':
-        raise ParseError('Expected closing bracket "]"')
+        raise ParseError('Expected closing bracket "]" at %s' %(line.desc(i)))
     i += 1
     return i, name
 
 
 def parse_string(line, i, s):
     if not line[i:].startswith(s):
-        raise ParseError('Expected string "%s" but found %s at line %s, character %d' %(s, chardesc(line, i), line, i))
+        raise ParseError('Expected string "%s" but found %s at %s' %(s, chardesc(line, i), line.desc(i)))
     return i + len(s)
 
 
@@ -107,7 +127,7 @@ def parse_identifier_list(line, i, empty_allowed):
     while i < end:
         if line[i] == ')':
             if not vs and not empty_allowed:
-                raise ParseError('Empty identifier list not allowed')
+                raise ParseError('Empty identifier list not allowed at %s' %(line.desc(i)))
             break
         if vs:
             i = parse_space(line, i)
@@ -131,7 +151,7 @@ def parse_indent(line):
     while i < end and line[i] == ' ':
         i += 1
     if i < end and line[i] == '\t':
-        raise ParseError('Tabs not allowed for indent')
+        raise ParseError('Tabs not allowed for indent at %s' %(line.desc(i),))
     return i
 
 
@@ -139,8 +159,7 @@ def parse_member_type(line, i):
     ts = ["value", "option", "reference", "struct", "set", "list", "dict"]
     i, w = parse_identifier(line, i)
     if w not in ts:
-        raise ParseError('Not a valid member type: "%s". Valid types are: %s'
-                         %(w, ' '.join(ts)))
+        raise ParseError('Not a valid member type: "%s". Valid types are: %s at %s' %(w, ' '.join(ts), line.desc(i)))
     return i, w
 
 
@@ -160,7 +179,7 @@ def parse_member_variable(line, i):
 def parse_query(line, i):
     i, w = parse_identifier(line, i)
     if w != 'for':
-        raise ParseError('Expected (optional) "for" keyword following member type decl in line %s' %(line,))
+        raise ParseError('Expected (optional) "for" keyword following member type decl in line %s at %s' %(line, line.desc(i)))
     i = parse_space(line, i)
     i, vs = parse_freevars(line, i)
     i = parse_space(line, i)
@@ -195,23 +214,23 @@ def parse_line(line):
     try:
         i, membername = parse_identifier(line, i)
     except ParseError as e:
-        raise ParseError('Expected a "member: declaration" line') from e
+        raise ParseError('Expected a "member: declaration" line at %s' %(line.desc())) from e
 
     if line[i:i+2] != ': ':
-        raise ParseError('Expected ": " after the member name')
+        raise ParseError('Expected ": " after the member name at %s' %(line.desc(i)))
     i += 2
 
     try:
         i, membertype = parse_member_type(line, i)
     except ParseError as e:
-        raise ParseError('Failed to parse member type') from e
+        raise ParseError('Failed to parse member type at %s' %(line.desc(i))) from e
 
     if membertype in ["value", "option", "reference"]:
         i = parse_space(line, i)
         try:
             i, membervariable = parse_member_variable(line, i)
         except ParseError as e:
-            raise ParseError('Failed to parse member variable') from e
+            raise ParseError('Failed to parse member variable at %s' %(line.desc(i))) from e
     else:
         membervariable = None
 
@@ -221,7 +240,7 @@ def parse_line(line):
     else:
         query = None
 
-    return indent, membername, membertype, membervariable, query
+    return indent, membername, membertype, membervariable, query, line
 
 
 def parse_dict(lines, li=None, curindent=None):
@@ -231,15 +250,16 @@ def parse_dict(lines, li=None, curindent=None):
         curindent = 0
     x = {}
     while li < len(lines):
-        indent, membername, membertype, membervariable, query = lines[li]
+        indent, membername, membertype, membervariable, query, line = lines[li]
+
         if indent < curindent:
             break
         if indent > curindent:
-            raise ParseError('Wrong amount of indentation (need %d) in line %s' %(curindent, lines[li]))
+            raise ParseError('Wrong amount of indentation (need %d) at %s' %(curindent, line.desc()))
         if membertype in ["struct", "set", "list", "dict"]:
             li, sub = parse_dict(lines, li+1, curindent + 4)
             if not sub:
-                raise ParseError('Empty %s' %(membertype,))
+                raise ParseError('Empty %s at %s' %(membertype, line.desc()))
             spec = membertype, sub, query
         else:
             spec = membertype, membervariable, query
@@ -286,7 +306,7 @@ Lecturer: set for (pid cid) (Lecturer pid cid)
 """
 
     parsed_lines = []
-    for line in spec.splitlines():
+    for line in list(iter_lines(spec.splitlines())):
         if line:
             parsed_lines.append(parse_line(line))
 
