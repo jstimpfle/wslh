@@ -9,52 +9,52 @@ class StructuralType:
 
 
 class SimpleValue(StructuralType):
-    def __init__(self, query_variable, query):
-        self.query_variable = query_variable
+    def __init__(self, variable, query):
+        self.childs = {}
         self.query = query
+        self.variable = variable
 
     def __repr__(self):
-        return str(self.query_variable)
+        return str(self.variable)
 
 
 class Struct(StructuralType):
-    def __init__(self, sub, query):
-        self.sub = sub
+    def __init__(self, childs, query):
+        self.childs = childs
         self.query = query
 
     def __repr__(self):
-        return str(self.sub)
+        return str(self.childs)
 
 
 class Set(StructuralType):
-    def __init__(self, query_variable, query):
+    def __init__(self, childs, query):
         assert query is not None
-        self.query_variable = query_variable
+        self.childs = childs
         self.query = query
 
     def __repr__(self):
-        return str(self.query_variable)
+        return str(self.childs)
 
 
 class List(StructuralType):
-    def __init__(self, query_variable, query):
+    def __init__(self, childs, query):
         assert query is not None
-        self.query_variable = query_variable
+        self.childs = childs
         self.query = query
 
     def __repr__(self):
-        return str(self.query_variable)
+        return str(self.childs)
 
 
 class Dict(StructuralType):
-    def __init__(self, key_variable, val_variable, query):
+    def __init__(self, childs, query):
         assert query is not None
-        self.key_variable = key_variable
-        self.val_variable = val_variable
+        self.childs = childs
         self.query = query
 
     def __repr__(self):
-        return '(%s => %s)' %(str(self.key_variable), str(self.val_variable))
+        return '(%s => %s)' %(self.childs['_key_'], self.childs['_val_'])
 
 
 class Reference(StructuralType):
@@ -91,6 +91,12 @@ class Reference(StructuralType):
             out += "."
             out += str(self.child)
         return out
+
+
+class Clause:
+    def __init__(self, table, cols):
+        self.table = table
+        self.cols = cols
 
 
 class ParseError(Exception):
@@ -180,7 +186,7 @@ def parse_identifier_list(line, i, empty_allowed):
         i, v = parse_variable(line, i)
         vs.append(v)
     i = parse_sequence(line, i, ')', '")" character')
-    return i, vs
+    return i, tuple(vs)
 
 
 def parse_freevars(line, i):
@@ -188,7 +194,8 @@ def parse_freevars(line, i):
 
 
 def parse_clause(line, i):
-    return parse_identifier_list(line, i, empty_allowed=False)
+    i, names = parse_identifier_list(line, i, empty_allowed=False)
+    return i, Clause(names[0], names[1:])
 
 
 def parse_indent(line):
@@ -223,13 +230,12 @@ def parse_member_variable(line, i):
 
 
 def parse_query(line, i):
-    i = parse_keyword(line, i, 'for', '(option) "for" keyword')
+    i = parse_keyword(line, i, 'for', '(optional) "for" keyword')
     i = parse_space(line, i)
-    i, vs = parse_freevars(line, i)
+    i, variables = parse_freevars(line, i)
     i = parse_space(line, i)
-    i, q = parse_clause(line, i)
-    # XXX
-    return i, (vs, q)
+    i, query = parse_clause(line, i)
+    return i, (variables, query)
 
 
 def parse_line(line):
@@ -296,7 +302,7 @@ def parse_tree(lines, li=None, curindent=None):
     if curindent is None:
         curindent = 0
 
-    x = collections.OrderedDict()
+    tree = collections.OrderedDict()
     while li < len(lines):
         indent, membername, membertype, membervariable, query, line = lines[li]
 
@@ -307,27 +313,28 @@ def parse_tree(lines, li=None, curindent=None):
 
         if membertype in ["struct", "set", "list", "dict"]:
             assert membervariable is None
-            li, sub = parse_tree(lines, li+1, curindent + 4)
+            li, childs = parse_tree(lines, li+1, curindent + 4)
 
             if membertype == "struct":
-                for x in (x for x in sub.keys() if x.startswith('_')):
-                    raise ParseError('Struct member at %s: child %s: must not start with underscore' %(line.desc(), x))
-                spec = Struct(sub, query)
+                for x in childs.keys():
+                    if x.startswith('_'):
+                        raise ParseError('Struct member at %s: child %s: must not start with underscore' %(line.desc(), x))
+                spec = Struct(childs, query)
 
             elif membertype == "set":
-                if set(sub) != set(['_val_']):
+                if set(childs) != set(['_val_']):
                     raise ParseError('Set member at %s: Need _val_ child (and no more)' %(line.desc(),))
-                spec = Set(sub['_val_'], query)
+                spec = Set(childs, query)
 
             elif membertype == "list":
-                if set(sub) != set(['_val_']):
+                if set(childs) != set(['_val_']):
                     raise ParseError('List member at %s: Need _val_ child (and no more)' %(line.desc(),))
-                spec = List(sub['_val_'], query)
+                spec = List(childs, query)
 
             elif membertype == "dict":
-                if set(sub) != set(['_key_', '_val_']):
-                    raise ParseError('Dict member at %s: Need _key_ and _val_ childs (and no more)' %(line.desc(), sub))
-                spec = Dict(sub['_key_'], sub['_val_'], query)
+                if set(childs) != set(['_key_', '_val_']):
+                    raise ParseError('Dict member at %s: Need _key_ and _val_ childs (and no more)' %(line.desc(), childs))
+                spec = Dict(childs, query)
 
         else:
             assert membervariable is not None
@@ -340,8 +347,8 @@ def parse_tree(lines, li=None, curindent=None):
 
             li += 1
 
-        x[membername] = spec
-    return li, x
+        tree[membername] = spec
+    return li, tree
 
 
 def testit():
