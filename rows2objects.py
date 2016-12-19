@@ -4,7 +4,7 @@ from types import Value, Struct, List, Settable, Spec, Query
 def find_child_rows(cols, rows, objs, query, database):
     assert len(rows) == len(objs)
 
-    rest = tuple(i for i, v in enumerate(query.variables) if v in query.freshvariables)
+    freshidxs = tuple(i for i, v in enumerate(query.variables) if v in query.freshvariables)
     fkeyvars = [v for v in query.variables if v not in query.freshvariables]
     fkey_local = tuple(query.variables.index(v) for v in fkeyvars)
     fkey_foreign = tuple(cols.index(v) for v in fkeyvars)
@@ -22,7 +22,7 @@ def find_child_rows(cols, rows, objs, query, database):
     for row in database[query.table]:
         key = tuple(row[i] for i in fkey_local)
         frow, fobj, flist = index[key]
-        newrow = frow + row
+        newrow = frow + tuple(row[i] for i in freshidxs)
         flist.append(newrow)
         newrows.append(newrow)
         newobjs.append(fobj)
