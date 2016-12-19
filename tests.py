@@ -1,17 +1,17 @@
 import json
 
-from types import Value, Struct, List, Spec, Query
+from types import Value, Struct, List, Query
 import rows2objects
 import objects2rows
 
 
-a = Spec(Value, None, None, 'a')
-b = Spec(Value, None, None, 'b')
-c = Spec(Value, None, None, 'c')
-d = Spec(Value, None, None, 'd')
-s = Spec(Struct, { 'a': a, 'b': b }, Query(['a', 'b'], 'foo', ['a', 'b', 'c']))
-s2 = Spec(Struct, { 'c': c, 'd': d, 's': s }, None)
-lst = Spec(List, { '_val_': s2 }, Query(['c', 'd'], 'bar', ['c', 'd']))
+a = Value('a', None)
+b = Value('b', None)
+c = Value('c', None)
+d = Value('d', None)
+s = Struct({ 'a': a, 'b': b }, Query(['a', 'b'], 'foo', ['a', 'b', 'c']))
+s2 = Struct({ 'c': c, 'd': d, 's': s }, None)
+lst = List({ '_val_': s2 }, Query(['c', 'd'], 'bar', ['c', 'd']))
 
 mydatabase = {
     'foo': [(1, 2, 3), (4, 5, 6)], 

@@ -1,4 +1,4 @@
-from types import Value, Struct, List, Settable, Spec, Query
+from types import Value, Struct, List, Settable, Query
 
 
 def add_rows(database, query, columns, rows):
@@ -39,9 +39,10 @@ def todb_list(columns, rows, objs, spec, database):
 
 def todb(columns, rows, objs, spec, database):
     assert len(rows) == len(objs)
-    if spec.typ == Value:
+    typ = type(spec)
+    if typ == Value:
         todb_value(columns, rows, objs, spec, database)
-    elif spec.typ == Struct:
+    elif typ == Struct:
         todb_struct(columns, rows, objs, spec, database)
-    elif spec.typ == List:
+    elif typ == List:
         todb_list(columns, rows, objs, spec, database)

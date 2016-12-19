@@ -1,6 +1,86 @@
-Value = 0
-Struct = 1
-List = 2
+class Value:
+    def __init__(self, variable, query):
+        assert variable is not None
+        assert isinstance(variable, str)
+        self.variable = variable
+        self.query = query
+
+class Struct:
+    def __init__(self, childs, query):
+        assert childs is not None
+        assert isinstance(childs, dict)
+        self.childs = childs
+        self.query = query
+
+    def __repr__(self):
+        return str(self.childs)
+
+
+class Set:
+    def __init__(self, childs, query):
+        assert query is not None
+        self.childs = childs
+        self.query = query
+
+    def __repr__(self):
+        return str(self.childs)
+
+
+class List:
+    def __init__(self, childs, query):
+        assert query is not None
+        self.childs = childs
+        self.query = query
+
+    def __repr__(self):
+        return str(self.childs)
+
+
+class Dict:
+    def __init__(self, childs, query):
+        assert query is not None
+        self.childs = childs
+        self.query = query
+
+    def __repr__(self):
+        return '(%s => %s)' %(self.childs['_key_'], self.childs['_val_'])
+
+
+class Reference:
+    def __init__(self, name, index=None, child=None):
+        """
+        Args:
+            name (str): A member name (relative to the root of the namespace or
+                the preceding element)
+            index (str): If *name* references a dict, *index* is the name of an
+                in-scope variable that is used as an index into the dict.
+                It must be *None* if *name* doesn't reference a dict.
+                Otherwise it must be given if *child* is given, and is optional
+                otherwise.
+            child (Reference): If given, where the reference leads from here.
+        """
+        if name is not None and not isinstance(name, str):
+            raise ValueError('"name" must be None or a str')
+        if index is not None and not isinstance(index, str):
+            raise ValueError('"index" must be None or a str')
+        if child is not None and not isinstance(child, Reference):
+            raise ValueError('"child" must be None or another Reference')
+
+        self.name = name
+        self.child = child
+        self.index = index
+
+    def __repr__(self):
+        out = self.name
+        if self.index is not None:
+            out += "["
+            out += self.index
+            out += "]"
+        if self.child is not None:
+            out += "."
+            out += str(self.child)
+        return out
+
 
 
 class Settable():
@@ -18,23 +98,6 @@ class Settable():
             return '?'
         else:
             return '%s' %(self.x,)
-
-
-class Spec:
-    def __init__(self, typ, childs, query, variable=None):
-        assert typ in [Value, Struct, List]
-        if childs is not None:
-            for key, val in childs.items():
-                assert isinstance(key, str)
-                assert isinstance(val, Spec)
-        if query is not None:
-            assert isinstance(query, Query)
-        if variable is not None:
-            assert isinstance(variable, str)
-        self.typ = typ
-        self.childs = childs
-        self.query = query
-        self.variable = variable
 
 
 class Query:

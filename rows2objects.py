@@ -1,4 +1,4 @@
-from types import Value, Struct, List, Spec, Query
+from types import Value, Struct, List, Query
 
 
 def find_child_rows(cols, rows, objs, query, database):
@@ -74,9 +74,10 @@ def fromdb_list(cols, rows, objs, spec, database):
 
 def fromdb(cols, rows, objs, spec, database):
     assert len(rows) == len(objs)
-    if spec.typ == Value:
+    typ = type(spec)
+    if typ == Value:
         return fromdb_value(cols, rows, objs, spec, database)
-    elif spec.typ == List:
+    elif typ == List:
         return fromdb_list(cols, rows, objs, spec, database)
-    elif spec.typ == Struct:
+    elif typ == Struct:
         return fromdb_struct(cols, rows, objs, spec, database)

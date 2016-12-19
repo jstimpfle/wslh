@@ -1,96 +1,6 @@
-"""Just looking for a possible implementation of WSL-H"""
-
 import collections
 import re
-
-
-class StructuralType:
-    pass
-
-
-class SimpleValue(StructuralType):
-    def __init__(self, variable, query):
-        self.childs = {}
-        self.query = query
-        self.variable = variable
-
-    def __repr__(self):
-        return str(self.variable)
-
-
-class Struct(StructuralType):
-    def __init__(self, childs, query):
-        self.childs = childs
-        self.query = query
-
-    def __repr__(self):
-        return str(self.childs)
-
-
-class Set(StructuralType):
-    def __init__(self, childs, query):
-        assert query is not None
-        self.childs = childs
-        self.query = query
-
-    def __repr__(self):
-        return str(self.childs)
-
-
-class List(StructuralType):
-    def __init__(self, childs, query):
-        assert query is not None
-        self.childs = childs
-        self.query = query
-
-    def __repr__(self):
-        return str(self.childs)
-
-
-class Dict(StructuralType):
-    def __init__(self, childs, query):
-        assert query is not None
-        self.childs = childs
-        self.query = query
-
-    def __repr__(self):
-        return '(%s => %s)' %(self.childs['_key_'], self.childs['_val_'])
-
-
-class Reference(StructuralType):
-    def __init__(self, name, index=None, child=None):
-        """
-        Args:
-            name (str): A member name (relative to the root of the namespace or
-                the preceding element)
-            index (str): If *name* references a dict, *index* is the name of an
-                in-scope variable that is used as an index into the dict.
-                It must be *None* if *name* doesn't reference a dict.
-                Otherwise it must be given if *child* is given, and is optional
-                otherwise.
-            child (Reference): If given, where the reference leads from here.
-        """
-        if name is not None and not isinstance(name, str):
-            raise ValueError('"name" must be None or a str')
-        if index is not None and not isinstance(index, str):
-            raise ValueError('"index" must be None or a str')
-        if child is not None and not isinstance(child, Reference):
-            raise ValueError('"child" must be None or another Reference')
-
-        self.name = name
-        self.child = child
-        self.index = index
-
-    def __repr__(self):
-        out = self.name
-        if self.index is not None:
-            out += "["
-            out += self.index
-            out += "]"
-        if self.child is not None:
-            out += "."
-            out += str(self.child)
-        return out
+from types import Value, Struct, Set, List, Dict, Reference
 
 
 class Clause:
@@ -274,7 +184,13 @@ def parse_line(line):
     except ParseError as e:
         raise ParseError('Failed to parse member type at %s' %(line.desc(i))) from e
 
-    if membertype in ["value", "option", "reference"]:
+    if membertype in ["value", "option"]:
+        i = parse_space(line, i)
+        try:
+            i, membervariable = parse_identifier(line, i)
+        except ParseError as e:
+            raise ParseError('Failed to parse member variable at %s' %(line.desc(i))) from e
+    elif membertype in ["reference"]:
         i = parse_space(line, i)
         try:
             i, membervariable = parse_member_variable(line, i)
@@ -340,7 +256,7 @@ def parse_tree(lines, li=None, curindent=None):
             assert membervariable is not None
 
             if membertype == "value":
-                spec = SimpleValue(membervariable, query)
+                spec = Value(membervariable, query)
 
             elif membertype == "reference":
                 spec = membervariable  # XXX
