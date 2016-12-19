@@ -5,6 +5,12 @@ class Value:
         self.variable = variable
         self.query = query
 
+    def __repr__(self):
+        if self.query is not None:
+            return 'for %s Value %s' %(self.query, self.variable)
+        else:
+            return 'Value %s' %(self.variable,)
+
 class Struct:
     def __init__(self, childs, query):
         assert childs is not None
@@ -13,7 +19,10 @@ class Struct:
         self.query = query
 
     def __repr__(self):
-        return str(self.childs)
+        if self.query is not None:
+            return 'for %s %s' %(self.query, self.childs)
+        else:
+            return 'Value %s' %(self.childs,)
 
 
 class Set:
@@ -23,7 +32,10 @@ class Set:
         self.query = query
 
     def __repr__(self):
-        return str(self.childs)
+        if self.query is not None:
+            return 'for %s %s' %(self.query, self.childs['_val_'])
+        else:
+            return 'Value %s' %(self.childs['_val_'],)
 
 
 class List:
@@ -33,7 +45,10 @@ class List:
         self.query = query
 
     def __repr__(self):
-        return str(self.childs)
+        if self.query is not None:
+            return 'for %s %s' %(self.query, self.childs['_val_'])
+        else:
+            return 'Value %s' %(self.childs['_val_'],)
 
 
 class Dict:
@@ -43,7 +58,10 @@ class Dict:
         self.query = query
 
     def __repr__(self):
-        return '(%s => %s)' %(self.childs['_key_'], self.childs['_val_'])
+        if self.query is not None:
+            return 'for %s (%s => %s)' %(self.query, self.childs['_key_'], self.childs['_val_'])
+        else:
+            return 'Value %s' %(self.childs['_val_'],)
 
 
 class Reference:
@@ -102,6 +120,12 @@ class Settable():
 
 class Query:
     def __init__(self, freshvariables, table, variables):
+        assert isinstance(freshvariables, tuple)
+        assert isinstance(table, str)
+        assert isinstance(variables, tuple)
         self.freshvariables = freshvariables
         self.table = table
         self.variables = variables
+
+    def __repr__(self):
+        return '(%s) (%s %s)' %(', '.join(self.freshvariables), self.table, ', '.join(self.variables))

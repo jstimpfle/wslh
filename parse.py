@@ -1,16 +1,14 @@
 import collections
 import re
-from types import Value, Struct, Set, List, Dict, Reference
-
-
-class Clause:
-    def __init__(self, table, cols):
-        self.table = table
-        self.cols = cols
+from types import Value, Struct, Set, List, Dict, Reference, Query
 
 
 class ParseError(Exception):
     pass
+
+
+class PrettyOrderedDict(collections.OrderedDict):
+    __repr__ = dict.__repr__
 
 
 class Line(str):
@@ -99,13 +97,14 @@ def parse_identifier_list(line, i, empty_allowed):
     return i, tuple(vs)
 
 
-def parse_freevars(line, i):
-    return parse_identifier_list(line, i, empty_allowed=True)
+def parse_freshvars(line, i):
+    i, vs = parse_identifier_list(line, i, empty_allowed=True)
+    return i, tuple(vs)
 
 
 def parse_clause(line, i):
     i, names = parse_identifier_list(line, i, empty_allowed=False)
-    return i, Clause(names[0], names[1:])
+    return i, (names[0], tuple(names[1:]))
 
 
 def parse_indent(line):
@@ -142,10 +141,10 @@ def parse_member_variable(line, i):
 def parse_query(line, i):
     i = parse_keyword(line, i, 'for', '(optional) "for" keyword')
     i = parse_space(line, i)
-    i, variables = parse_freevars(line, i)
+    i, freshvariables = parse_freshvars(line, i)
     i = parse_space(line, i)
-    i, query = parse_clause(line, i)
-    return i, (variables, query)
+    i, (table, variables) = parse_clause(line, i)
+    return i, Query(freshvariables, table, variables)
 
 
 def parse_line(line):
@@ -218,7 +217,7 @@ def parse_tree(lines, li=None, curindent=None):
     if curindent is None:
         curindent = 0
 
-    tree = collections.OrderedDict()
+    tree = PrettyOrderedDict()
     while li < len(lines):
         indent, membername, membertype, membervariable, query, line = lines[li]
 

@@ -81,3 +81,5 @@ def fromdb(cols, rows, objs, spec, database):
         return fromdb_list(cols, rows, objs, spec, database)
     elif typ == Struct:
         return fromdb_struct(cols, rows, objs, spec, database)
+    else:
+        assert False

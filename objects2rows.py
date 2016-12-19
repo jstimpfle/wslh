@@ -31,7 +31,7 @@ def todb_list(columns, rows, objs, spec, database):
     nextobjs = []
     for row, lst in zip(rows, objs):
         for item in lst:
-            nextrows.append(row + [Settable() for _ in spec.query.freshvariables])
+            nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
             nextobjs.append(item)
     todb(nextcolumns, nextrows, nextobjs, spec.childs['_val_'], database)
     add_rows(database, spec.query, nextcolumns, nextrows)
@@ -46,3 +46,5 @@ def todb(columns, rows, objs, spec, database):
         todb_struct(columns, rows, objs, spec, database)
     elif typ == List:
         todb_list(columns, rows, objs, spec, database)
+    else:
+        assert False
