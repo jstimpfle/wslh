@@ -22,6 +22,15 @@ class Settable():
 
 class Spec:
     def __init__(self, typ, childs, query, variable=None):
+        assert typ in [Value, Struct, List]
+        if childs is not None:
+            for key, val in childs.items():
+                assert isinstance(key, str)
+                assert isinstance(val, Spec)
+        if query is not None:
+            assert isinstance(query, Query)
+        if variable is not None:
+            assert isinstance(variable, str)
         self.typ = typ
         self.childs = childs
         self.query = query
