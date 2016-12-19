@@ -1,4 +1,4 @@
-from types import Value, Struct, List, Settable, Query
+from types import Value, Struct, List, Dict, Settable, Query
 
 
 def add_rows(database, query, cols, rows):
@@ -33,8 +33,23 @@ def todb_list(cols, rows, objs, spec, database):
         for item in lst:
             nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
             nextobjs.append(item)
-    todb(nextcols, nextrows, nextobjs, spec.childs['_val_'], database)
     add_rows(database, spec.query, nextcols, nextrows)
+    todb(nextcols, nextrows, nextobjs, spec.childs['_val_'], database)
+
+
+def todb_dict(cols, rows, objs, spec, database):
+    nextcols = cols + spec.query.freshvariables
+    nextrows = []
+    nextobjs_keys = []
+    nextobjs_vals = []
+    for row, dct in zip(rows, objs):
+        for key, val in dct.items():
+            nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
+            nextobjs_keys.append(key)
+            nextobjs_vals.append(val)
+    add_rows(database, spec.query, nextcols, nextrows)
+    todb(nextcols, nextrows, nextobjs_keys, spec.childs['_key_'], database)
+    todb(nextcols, nextrows, nextobjs_vals, spec.childs['_val_'], database)
 
 
 def todb(cols, rows, objs, spec, database):
@@ -46,5 +61,7 @@ def todb(cols, rows, objs, spec, database):
         todb_struct(cols, rows, objs, spec, database)
     elif typ == List:
         todb_list(cols, rows, objs, spec, database)
+    elif typ == Dict:
+        todb_dict(cols, rows, objs, spec, database)
     else:
         assert False

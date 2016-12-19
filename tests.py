@@ -1,6 +1,6 @@
 import json
 
-from types import Value, Struct, List, Query
+from types import Value, Struct, List, Dict, Query
 import rows2objects
 import objects2rows
 
@@ -11,18 +11,18 @@ c = Value('c', None)
 d = Value('d', None)
 s = Struct({ 'a': a, 'b': b }, Query(('a', 'b'), 'foo', ('a', 'b', 'c')))
 s2 = Struct({ 'c': c, 'd': d, 's': s }, None)
-lst = List({ '_val_': s2 }, Query(('c', 'd'), 'bar', ('c', 'd')))
+lst = Dict({ '_key_': c, '_val_': s2 }, Query(('c', 'd'), 'bar', ('c', 'd')))
 
 mydatabase = {
     'foo': [(1, 2, 3), (4, 5, 6)], 
     'bar': [(3, 666), (6, 1024), (42, 0)]
 }
 
-myobject = [
-    { 'c': 3, 'd': 666, 's': { 'a': 1, 'b': 2 } },
-    { 'c': 6, 'd': 1024, 's': { 'a': 4, 'b': 5 } },
-    { 'c': 42, 'd': 0, 's': None }
-]
+myobject = {
+    3: { 'c': 3, 'd': 666, 's': { 'a': 1, 'b': 2 } },
+    6: { 'c': 6, 'd': 1024, 's': { 'a': 4, 'b': 5 } },
+    42: { 'c': 42, 'd': 0, 's': None }
+}
 
 
 def json_repr(x):
@@ -47,7 +47,7 @@ def test_rows2objects():
     [(topobject, subobject)] = rows2objects.fromdb((), [()], [None], lst, mydatabase)
 
     assert topobject is None
-    assert isinstance(subobject, list)
+    assert isinstance(subobject, dict)
 
     print('RESULT')
     print('======')

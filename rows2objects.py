@@ -1,4 +1,4 @@
-from types import Value, Struct, List, Query
+from types import Value, Struct, List, Dict, Query
 
 
 def find_child_rows(cols, rows, objs, query, database):
@@ -72,14 +72,31 @@ def fromdb_list(cols, rows, objs, spec, database):
     return list(zip(objs, lsts))
 
 
+def fromdb_dict(cols, rows, objs, spec, database):
+    dcts = [{} for _ in objs]
+
+    newcols, newrows, newobjs, _ = find_child_rows(cols, rows, dcts, spec.query, database)
+
+    keypairs = fromdb(newcols, newrows, newobjs, spec.childs['_key_'], database)
+    valpairs = fromdb(newcols, newrows, newobjs, spec.childs['_val_'], database)
+    assert len(keypairs) == len(valpairs)
+    for (dct1, key), (dct2, val) in zip(keypairs, valpairs):
+        assert dct1 is dct2
+        dct1[key] = val
+
+    return list(zip(objs, dcts))
+
+
 def fromdb(cols, rows, objs, spec, database):
     assert len(rows) == len(objs)
     typ = type(spec)
     if typ == Value:
         return fromdb_value(cols, rows, objs, spec, database)
-    elif typ == List:
-        return fromdb_list(cols, rows, objs, spec, database)
     elif typ == Struct:
         return fromdb_struct(cols, rows, objs, spec, database)
+    elif typ == List:
+        return fromdb_list(cols, rows, objs, spec, database)
+    elif typ == Dict:
+        return fromdb_dict(cols, rows, objs, spec, database)
     else:
         assert False
