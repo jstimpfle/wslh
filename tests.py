@@ -9,9 +9,9 @@ a = Value('a', None)
 b = Value('b', None)
 c = Value('c', None)
 d = Value('d', None)
-s = Struct({ 'a': a, 'b': b }, Query(['a', 'b'], 'foo', ['a', 'b', 'c']))
+s = Struct({ 'a': a, 'b': b }, Query(('a', 'b'), 'foo', ('a', 'b', 'c')))
 s2 = Struct({ 'c': c, 'd': d, 's': s }, None)
-lst = List({ '_val_': s2 }, Query(['c', 'd'], 'bar', ['c', 'd']))
+lst = List({ '_val_': s2 }, Query(('c', 'd'), 'bar', ('c', 'd')))
 
 mydatabase = {
     'foo': [(1, 2, 3), (4, 5, 6)], 
@@ -33,7 +33,7 @@ def test_rows2objects():
     print()
     print('TESTING rows2objects()...')
     print('=========================')
-    print('')
+    print()
 
     print('Database:')
     print('=========')
@@ -44,7 +44,7 @@ def test_rows2objects():
             print(row)
         print()
 
-    [(topobject, subobject)] = rows2objects.fromdb([], [()], [None], lst, mydatabase)
+    [(topobject, subobject)] = rows2objects.fromdb((), [()], [None], lst, mydatabase)
 
     assert topobject is None
     assert isinstance(subobject, list)
@@ -60,7 +60,7 @@ def test_objects2rows():
     print()
     print('TESTING objects2rows()...')
     print('=========================')
-    print('')
+    print()
 
     database = {
         'foo': [],
@@ -71,7 +71,7 @@ def test_objects2rows():
     print('========')
     print(json_repr(myobject))
 
-    objects2rows.todb([], [[]], [myobject], lst, database)
+    objects2rows.todb((), [()], [myobject], lst, database)
 
     print()
     print('RESULTS')
