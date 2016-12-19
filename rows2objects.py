@@ -1,4 +1,4 @@
-from types import Value, Struct, List, Settable, Spec, Query
+from types import Value, Struct, List, Spec, Query
 
 
 def find_child_rows(cols, rows, objs, query, database):
@@ -35,38 +35,41 @@ def fromdb_value(cols, rows, objs, spec, database):
         newcols, newrows, newobjs, _ = find_child_rows(cols, rows, objs, spec.query, database)
     else:
         newcols, newrows, newobjs = cols, rows, objs
+
     idx = newcols.index(spec.variable)
     return [(newobj, newrow[idx]) for newobj, newrow in zip(newobjs, newrows)]
 
 
 def fromdb_struct(cols, rows, objs, spec, database):
-    structs = [Settable() for _ in objs]
+    structs = [None] * len(objs)
+    ids = range(len(objs))
 
     if spec.query is not None:
-        newcols, newrows, newstructs, _ = find_child_rows(cols, rows, structs, spec.query, database)
-        for newrow, newstruct in zip(newrows, newstructs):
-            assert newstruct.get() is None
-            newstruct.set({})
+        newcols, newrows, newids, _ = find_child_rows(cols, rows, ids, spec.query, database)
     else:
-        newcols, newrows, newstructs = cols, rows, structs
-        for newstruct in newstructs:
-            newstruct.set({})
+        newcols, newrows, newids = cols, rows, ids
+
+    for i in newids:
+        structs[i] = {}
 
     for key in spec.childs:
-        pairs = fromdb(newcols, newrows, newstructs, spec.childs[key], database)
-        for newstruct, val in pairs:
-            newstruct.get()[key] = val
+        pairs = fromdb(newcols, newrows, newids, spec.childs[key], database)
+        for i, val in pairs:
+            structs[i][key] = val
 
-    return [(obj, struct.get()) for obj, struct in zip(objs, structs)]
+    return list(zip(objs, structs))
 
 
 def fromdb_list(cols, rows, objs, spec, database):
     lsts = [[] for _ in objs]
+
     newcols, newrows, newobjs, _ = find_child_rows(cols, rows, lsts, spec.query, database)
+
     pairs = fromdb(newcols, newrows, newobjs, spec.childs['_val_'], database)
     for lst, val in pairs:
         lst.append(val)
-    return [(obj, lst) for obj, lst in zip(objs, lsts)]
+
+    return list(zip(objs, lsts))
 
 
 def fromdb(cols, rows, objs, spec, database):
