@@ -44,7 +44,7 @@ def test_rows2objects():
             print(row)
         print()
 
-    [(topobject, subobject)] = rows2objects.fromdb((), [()], [None], lst, mydatabase)
+    [(topobject, subobject)] = rows2objects.rows2objects(lst, mydatabase)
 
     assert topobject is None
     assert isinstance(subobject, dict)
@@ -62,16 +62,11 @@ def test_objects2rows():
     print('=========================')
     print()
 
-    database = {
-        'foo': [],
-        'bar': []
-    }
-
     print('Objects:')
     print('========')
     print(json_repr(myobject))
 
-    objects2rows.todb((), [()], [myobject], lst, database)
+    database = objects2rows.objects2rows([myobject], lst)
 
     print()
     print('RESULTS')
@@ -90,9 +85,6 @@ def test_objects2rows():
 if __name__ == '__main__':
     objects = test_rows2objects()
     database = test_objects2rows()
-    database = dict((key, [tuple(val.get() for val in row) for row in rows]) for key, rows in database.items())
-    for table in database.values():
-        table.sort()
 
     assert json_repr(objects) == json_repr(myobject)
     assert json_repr(database) == json_repr(mydatabase)

@@ -11,6 +11,7 @@ class Value:
         else:
             return 'Value %s' %(self.variable,)
 
+
 class Struct:
     def __init__(self, childs, query):
         assert childs is not None
@@ -98,24 +99,6 @@ class Reference:
             out += "."
             out += str(self.child)
         return out
-
-
-
-class Settable():
-    def __init__(self):
-        self.x = None
-
-    def set(self, x):
-        self.x = x
-
-    def get(self):
-        return self.x
-
-    def __repr__(self):
-        if self.x is None:
-            return '?'
-        else:
-            return '%s' %(self.x,)
 
 
 class Query:

@@ -100,3 +100,7 @@ def fromdb(cols, rows, objs, spec, database):
         return fromdb_dict(cols, rows, objs, spec, database)
     else:
         assert False
+
+
+def rows2objects(s, database):
+    return fromdb((), [()], [None], s, database)

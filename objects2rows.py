@@ -1,28 +1,72 @@
-from types import Value, Struct, List, Dict, Settable, Query
+from types import Value, Struct, List, Dict, Query
+
+
+class Settable():
+    def __init__(self):
+        self.x = None
+
+    def set(self, x):
+        self.x = x
+
+    def get(self):
+        return self.x
+
+    def __repr__(self):
+        if self.x is None:
+            return '?'
+        else:
+            return '!%s' %(self.x,)
 
 
 def add_rows(database, query, cols, rows):
     key = tuple(cols.index(v) for v in query.variables)
-    database[query.table] += [tuple(row[i] for i in key) for row in rows]
+    table = database.setdefault(query.table, [])
+    for row in rows:
+        table.append(tuple(row[i].get() for i in key))
 
 
 def todb_value(cols, rows, objs, spec, database):
-    idx = cols.index(spec.variable)
-    for row, obj in zip(rows, objs):
-        row[idx].set(obj)
+    if spec.query is not None:
+        nextcols = cols + spec.query.freshvariables
+        nextrows = []
+        nextobjs = []
+        for row, obj in zip(rows, objs):
+            if obj is not None:
+                nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
+                nextobjs.append(obj)
+    else:
+        nextcols = cols
+        nextrows = rows
+        nextobjs = objs
+    idx = nextcols.index(spec.variable)
+    for nextrow, nextobj in zip(nextrows, nextobjs):
+        nextrow[idx].set(nextobj)
+    if spec.query is not None:
+        add_rows(database, spec.query, nextcols, nextrows)
 
 
 def todb_struct(cols, rows, objs, spec, database):
     if spec.query is not None:
         nextcols = cols + spec.query.freshvariables
-        nextrows = [row + tuple(Settable() for _ in spec.query.freshvariables) for row, obj in zip(rows, objs) if obj is not None]
-        add_rows(database, spec.query, nextcols, nextrows)
+        nextrows = []
+        nextobjs = { key: [] for key in spec.childs }
+        for row, obj in zip(rows, objs):
+            if obj is not None:
+                nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
+                for key in spec.childs:
+                    nextobjs[key].append(obj[key])
     else:
         nextcols = cols
         nextrows = rows
+        nextobjs = { key: [] for key in spec.childs }
+        for obj in objs:
+            assert obj is not None
+            for key in spec.childs:
+                nextobjs[key].append(obj[key])
     for key in spec.childs:
-        nextobjs = [obj[key] for obj in objs if obj is not None]
-        todb(nextcols, nextrows, nextobjs, spec.childs[key], database)
+        todb(nextcols, nextrows, nextobjs[key], spec.childs[key], database)
+    if spec.query is not None:
+        add_rows(database, spec.query, nextcols, nextrows)
 
 
 def todb_list(cols, rows, objs, spec, database):
@@ -33,8 +77,8 @@ def todb_list(cols, rows, objs, spec, database):
         for item in lst:
             nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
             nextobjs.append(item)
-    add_rows(database, spec.query, nextcols, nextrows)
     todb(nextcols, nextrows, nextobjs, spec.childs['_val_'], database)
+    add_rows(database, spec.query, nextcols, nextrows)
 
 
 def todb_dict(cols, rows, objs, spec, database):
@@ -47,9 +91,9 @@ def todb_dict(cols, rows, objs, spec, database):
             nextrows.append(row + tuple(Settable() for _ in spec.query.freshvariables))
             nextobjs_keys.append(key)
             nextobjs_vals.append(val)
-    add_rows(database, spec.query, nextcols, nextrows)
     todb(nextcols, nextrows, nextobjs_keys, spec.childs['_key_'], database)
     todb(nextcols, nextrows, nextobjs_vals, spec.childs['_val_'], database)
+    add_rows(database, spec.query, nextcols, nextrows)
 
 
 def todb(cols, rows, objs, spec, database):
@@ -65,3 +109,14 @@ def todb(cols, rows, objs, spec, database):
         todb_dict(cols, rows, objs, spec, database)
     else:
         assert False
+
+
+def objects2rows(objs, spec):
+    database = {}
+
+    todb((), [()], objs, spec, database)
+
+    for table in database.values():
+        table.sort()
+
+    return database
