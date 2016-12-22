@@ -1,6 +1,6 @@
 import collections
 import re
-from types import Value, Struct, Set, List, Dict, Reference, Query
+from datatypes import Value, Struct, Set, List, Dict, Reference, Query
 
 
 class ParseError(Exception):

@@ -1,4 +1,4 @@
-from types import Value, Struct, List, Dict, Query
+from datatypes import Value, Struct, List, Dict, Query
 
 
 class Settable():

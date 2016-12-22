@@ -1,6 +1,6 @@
 import json
 
-from types import Value, Struct, List, Dict, Query
+from datatypes import Value, Struct, List, Dict, Query
 import rows2objects
 import objects2rows
 
