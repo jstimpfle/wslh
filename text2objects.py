@@ -1,5 +1,7 @@
 import re
 
+from datatypes import Value, Struct, Dict
+
 
 class ParseException(Exception):
     def __init__(self, msg, text, lineno, charno):
@@ -70,14 +72,22 @@ def parse_block(dct, indent, text, i):
         parser = dct.get(kw)
         if parser is None:
             raise make_parse_exc('Found unexpected field "%s"' %(kw,), text, i)
-        i = parse_space(text, i)
         i, val = parser(indent + 4, text, i)
         out.append((kw, val))
     return i, out
 
 
+def make_value_parser(valueparser):
+    def value_parser(indent, text, i):
+        i = parse_space(text, i)
+        i, v = valueparser(indent, text, i)
+        return i, v
+    return value_parser
+
+
 def make_keyvalue_parser(keyparser, valueparser):
     def keyvalue_parser(indent, text, i):
+        i = parse_space(text, i)
         i, k = keyparser(indent, text, i)
         i, v = valueparser(indent, text, i)
         return i, (k, v)
@@ -133,6 +143,21 @@ def doparse(parser, text):
     return r
 
 
+def make_parser_from_spec(spec):
+    typ = type(spec)
+
+    if typ == Value:
+        return make_value_parser(parse_identifier)
+    elif typ == Struct:
+        dct = dict((k, make_parser_from_spec(v)) for k, v in spec.childs.items())
+        return make_struct_parser(dct)
+    elif typ == Dict:
+        value_parser = make_parser_from_spec(spec.childs['_val_'])
+        return make_dict_parser(value_parser)
+
+    assert False  # missing case
+
+
 text = """\
 value v1
     foo b
@@ -143,8 +168,8 @@ value v2
 """
 
 theparser = make_dict_parser(make_struct_parser({
-    'foo': parse_identifier,
-    'bar': parse_identifier
+    'foo': make_value_parser(parse_identifier),
+    'bar': make_value_parser(parse_identifier)
 }))
 
 x = doparse(theparser, text)

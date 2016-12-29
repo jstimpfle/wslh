@@ -3,6 +3,7 @@ import json
 from datatypes import Value, Struct, List, Dict, Query
 import rows2objects
 import objects2rows
+import text2objects
 
 
 a = Value('a', None)
@@ -82,9 +83,38 @@ def test_objects2rows():
     return database
 
 
+def test_text2objects():
+    print()
+    print('TESTING text2objects()...')
+    print('=========================')
+    print()
+
+    text = """\
+value v1
+    c vc
+    d vd
+    s
+        a va
+        b vb
+value v2
+    c vc
+    d vd
+    s
+        a va
+        b vb
+"""
+
+    theparser = text2objects.make_parser_from_spec(lst)
+
+    x = text2objects.doparse(theparser, text)
+    print(x)
+
+
 if __name__ == '__main__':
     objects = test_rows2objects()
     database = test_objects2rows()
 
     assert json_repr(objects) == json_repr(myobject)
     assert json_repr(database) == json_repr(mydatabase)
+
+    test_text2objects()
