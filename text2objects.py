@@ -35,7 +35,7 @@ def parse_newline(text, i):
     return i + 1
 
 
-def parse_keyword(identifier, text, i):
+def parse_keyword(indent, text, i):
     end = len(text)
     start = i
     while i < end and text[i].isalpha():
@@ -88,17 +88,17 @@ def make_struct_parser(dct):
     def struct_parser(indent, text, i):
         i = parse_newline(text, i)
         i, items = parse_block(dct, indent, text, i)
-        missing = set(dct.keys()).difference(set(dict(items).keys()))
+        wantkeys = set(dct.keys())
+        havekeys = set(k for k, v in items)
+        missing = wantkeys.difference(havekeys)
+        invalid = havekeys.difference(wantkeys)
         if missing:
             raise make_parse_exc('Missing keys: %s' %(', '.join(missing),), text, i)
-        if len(items) != len(dct):
-            raise make_parse_exc('Duplicate keys in %s' %(', '.join(k for k, _ in items),), text, i)
-        out = {}
-        for k, v in items:
-            if k in out:
-                raise make_parse_exc('Duplicate member: %s' %(k,), text, i)
-            out[k] = v
-        return i, out
+        if invalid:
+            raise make_parse_exc('Invalid keys: %s' %(', '.join(invalid),), text, i)
+        if len(havekeys) != len(items):
+            raise make_parse_exc('Duplicate keys: %s' %(', '.join(k for k, _ in items),), text, i)
+        return i, dict(items)
     return struct_parser
 
 
