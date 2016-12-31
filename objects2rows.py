@@ -5,17 +5,17 @@ class Settable():
     def __init__(self):
         self.x = None
 
-    def set(self, x):
-        self.x = x
-
-    def get(self):
-        return self.x
-
     def __repr__(self):
         if self.x is None:
             return '?'
         else:
             return '!%s' %(self.x,)
+
+    def set(self, x):
+        self.x = x
+
+    def get(self):
+        return self.x
 
 
 def add_rows(database, query, cols, rows):
