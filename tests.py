@@ -25,6 +25,24 @@ myobject = {
     42: { 'c': 42, 'd': 0, 's': None }
 }
 
+mytext = """\
+value 3
+    c 3
+    d 666
+    s
+        a 1
+        b 2
+value 6
+    c 6
+    d 1024
+    s
+        a 4
+        b 5
+value 42
+    c 42
+    d 0
+"""
+
 
 def json_repr(x):
     return json.dumps(x, sort_keys=True, indent=2)
@@ -71,8 +89,8 @@ def test_objects2rows():
 
     print()
     print('RESULTS')
+    print('=======')
     print()
-
     for table in ['bar', 'foo']:
         print(table)
         print('=' * len(table))
@@ -89,32 +107,20 @@ def test_text2objects():
     print('=========================')
     print()
 
-    text = """\
-value v1
-    c vc
-    d vd
-    s
-        a va
-        b vb
-value v2
-    c vc
-    d vd
-    s
-        a va
-        b vb
-"""
-
     theparser = text2objects.make_parser_from_spec(lst)
 
-    x = text2objects.doparse(theparser, text)
-    print(x)
+    objects = text2objects.doparse(theparser, mytext)
+
+    print(objects)
+
+    return objects
 
 
 if __name__ == '__main__':
     objects = test_rows2objects()
     database = test_objects2rows()
+    objects2 = test_text2objects()
 
     assert json_repr(objects) == json_repr(myobject)
     assert json_repr(database) == json_repr(mydatabase)
-
-    test_text2objects()
+    assert objects == objects2

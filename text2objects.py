@@ -57,7 +57,18 @@ def parse_identifier(indent, text, i):
     return i, text[start:i]
 
 
+def parse_int(indent, text, i):
+    end = len(text)
+    start = i
+    m = re.match(r'^(0|-?[1-9][0-9]*)', text[i:])
+    if m is None:
+        raise make_parse_exc('Integer expected', text, i)
+    i += m.end(0)
+    return i, int(text[start:i])
+
+
 def parse_block(dct, indent, text, i):
+    nextindent = indent + 4
     end = len(text)
     out = []
     while True:
@@ -72,23 +83,32 @@ def parse_block(dct, indent, text, i):
         parser = dct.get(kw)
         if parser is None:
             raise make_parse_exc('Found unexpected field "%s"' %(kw,), text, i)
-        i, val = parser(indent + 4, text, i)
+        i, val = parser(nextindent, text, i)
         out.append((kw, val))
     return i, out
 
 
-def make_value_parser(valueparser):
-    def value_parser(indent, text, i):
+def space_and_then(valueparser):
+    def space_and_then_parser(indent, text, i):
         i = parse_space(text, i)
         i, v = valueparser(indent, text, i)
         return i, v
-    return value_parser
+    return space_and_then_parser
+
+
+def newline_and_then(valueparser):
+    def newline_and_then_parser(indent, text, i):
+        i = parse_newline(text, i)
+        i, v = valueparser(indent, text, i)
+        return i, v
+    return newline_and_then_parser
 
 
 def make_keyvalue_parser(keyparser, valueparser):
     def keyvalue_parser(indent, text, i):
         i = parse_space(text, i)
         i, k = keyparser(indent, text, i)
+        i = parse_newline(text, i)
         i, v = valueparser(indent, text, i)
         return i, (k, v)
     return keyvalue_parser
@@ -96,24 +116,25 @@ def make_keyvalue_parser(keyparser, valueparser):
 
 def make_struct_parser(dct):
     def struct_parser(indent, text, i):
-        i = parse_newline(text, i)
         i, items = parse_block(dct, indent, text, i)
         wantkeys = set(dct.keys())
         havekeys = set(k for k, v in items)
-        missing = wantkeys.difference(havekeys)
         invalid = havekeys.difference(wantkeys)
-        if missing:
-            raise make_parse_exc('Missing keys: %s' %(', '.join(missing),), text, i)
-        if invalid:
-            raise make_parse_exc('Invalid keys: %s' %(', '.join(invalid),), text, i)
-        if len(havekeys) != len(items):
-            raise make_parse_exc('Duplicate keys: %s' %(', '.join(k for k, _ in items),), text, i)
-        return i, dict(items)
+        struct = {}
+        for k, v in items:
+            if k not in wantkeys:
+                raise make_parse_exc('Invalid key: %s' %(k,), text, i)
+            if k in items:
+                raise make_parse_exc('Duplicate key: %s' %(k,), text, i)
+            struct[k] = v
+        for k in wantkeys:
+            struct.setdefault(k, None)
+        return i, struct
     return struct_parser
 
 
-def make_dict_parser(value_parser):
-    item_parser = make_keyvalue_parser(parse_identifier, value_parser)
+def make_dict_parser(key_parser, val_parser):
+    item_parser = make_keyvalue_parser(key_parser, val_parser)
     def dict_parser(indent, text, i):
         i, items = parse_block({ 'value': item_parser }, indent, text, i)
         out = {}
@@ -147,30 +168,19 @@ def make_parser_from_spec(spec):
     typ = type(spec)
 
     if typ == Value:
-        return make_value_parser(parse_identifier)
+        return parse_int
     elif typ == Struct:
-        dct = dict((k, make_parser_from_spec(v)) for k, v in spec.childs.items())
+        dct = {}
+        for k, v in spec.childs.items():
+            subparser = make_parser_from_spec(v)
+            if type(v) == Value:
+                dct[k] = space_and_then(subparser)
+            else:
+                dct[k] = newline_and_then(subparser)
         return make_struct_parser(dct)
     elif typ == Dict:
-        value_parser = make_parser_from_spec(spec.childs['_val_'])
-        return make_dict_parser(value_parser)
+        key_parser = make_parser_from_spec(spec.childs['_key_'])
+        val_parser = make_parser_from_spec(spec.childs['_val_'])
+        return make_dict_parser(key_parser, val_parser)
 
     assert False  # missing case
-
-
-text = """\
-value v1
-    foo b
-    bar c
-value v2
-    foo x
-    bar y
-"""
-
-theparser = make_dict_parser(make_struct_parser({
-    'foo': make_value_parser(parse_identifier),
-    'bar': make_value_parser(parse_identifier)
-}))
-
-x = doparse(theparser, text)
-print(x)
