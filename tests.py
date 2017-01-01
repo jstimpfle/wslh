@@ -28,7 +28,7 @@ foos: dict for (c d) (bar c d)
 print(myspec)
 
 mydatabase = {
-    'foo': [(1, 2, 3), (4, 5, 6)], 
+    'foo': [(1, 2, 3), (4, 5, 6)],
     'bar': [(3, 666), (6, 1024), (42, 0)]
 }
 

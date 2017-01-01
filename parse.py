@@ -152,7 +152,7 @@ def parse_line(line):
     cases:
 
       MEMBER_VALUE     := TYPE (QUERY)?
-      TYPE             := "value" | "option" | "struct" | "set" | "dict" | 
+      TYPE             := "value" | "option" | "struct" | "set" | "dict"
       QUERY            := FOR_KEYWORD FREEVARS_LIST QUERY_LIST
       FREEVARS_LIST    := IDENTIFIERS_LIST
       QUERY_LIST       := IDENTIFIERS_LIST
