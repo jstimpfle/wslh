@@ -18,7 +18,7 @@ REFERENCE foobar foo * * c => bar c *
 
 
 myspec = parse.parse_spec(myschema, """\
-foos: dict for (c d) (bar c d)
+bars: dict for (c d) (bar c d)
     _key_: value c
     _val_: struct
         c: value c
@@ -36,7 +36,7 @@ mydatabase = {
 
 
 myobject = {
-    'foos': {
+    'bars': {
         3: { 'c': 3, 'd': 666, 's': { 'a': 1, 'b': 2 } },
         6: { 'c': 6, 'd': 1024, 's': { 'a': 4, 'b': 5 } },
         42: { 'c': 42, 'd': 0, 's': None }
@@ -45,7 +45,7 @@ myobject = {
 
 
 mytext = """\
-foos
+bars
     value 3
         c 3
         d 666
