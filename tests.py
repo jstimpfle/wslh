@@ -1,6 +1,7 @@
 import json
 
 import wsl
+
 from datatypes import Value, Struct, List, Dict, Query
 import parse
 import rows2objects
@@ -15,6 +16,7 @@ TABLE bar Int Int
 REFERENCE foobar foo * * c => bar c *
 """)
 
+
 myspec = parse.parse_spec(myschema, """\
 foos: dict for (c d) (bar c d)
     _key_: value c
@@ -25,12 +27,13 @@ foos: dict for (c d) (bar c d)
             a: value a
             b: value b
 """)
-print(myspec)
+
 
 mydatabase = {
     'foo': [(1, 2, 3), (4, 5, 6)],
     'bar': [(3, 666), (6, 1024), (42, 0)]
 }
+
 
 myobject = {
     'foos': {
@@ -39,6 +42,7 @@ myobject = {
         42: { 'c': 42, 'd': 0, 's': None }
     }
 }
+
 
 mytext = """\
 foos
@@ -123,7 +127,17 @@ def test_text2objects():
     print('=========================')
     print()
 
-    theparser = text2objects.make_parser_from_spec(myspec)
+    def lookup_parser(primtype):
+        if primtype == 'Int':
+            return text2objects.parse_int
+        elif primtype == 'String':
+            return text2objects.parse_string
+        elif primtype.endswith('ID'):
+            return text2objects.parse_identifier
+        else:
+            assert False
+
+    theparser = text2objects.make_parser_from_spec(lookup_parser, myspec)
 
     objects = text2objects.doparse(theparser, mytext)
 

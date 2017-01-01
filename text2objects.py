@@ -174,40 +174,35 @@ def doparse(parser, text):
     return r
 
 
-def make_parser_from_spec(spec):
+def make_parser_from_spec(lookup_primparser, spec):
     typ = type(spec)
 
     if typ == Value:
-        # XXX: just to be able to test other code while it is developped
-        if spec.primtype == 'Int':
-            return parse_int
-        elif spec.primtype == 'String':
-            return parse_string
-        elif spec.primtype.endswith('ID'):
-            return parse_identifier
-        else:
-            assert False
+        parser = lookup_primparser(spec.primtype)
+        if parser is None:
+            raise ValueError('There is no parser for datatype "%s"' %(spec.primtype,))
+        return parser
     elif typ == Struct:
         dct = {}
         for k, v in spec.childs.items():
-            subparser = make_parser_from_spec(v)
+            subparser = make_parser_from_spec(lookup_primparser, v)
             if type(v) == Value:
                 dct[k] = space_and_then(subparser)
             else:
                 dct[k] = newline_and_then(subparser)
         return make_struct_parser(dct)
     elif typ == List:
-        val_parser = make_parser_from_spec(spec.childs['_val_'])
+        val_parser = make_parser_from_spec(lookup_primparser, spec.childs['_val_'])
         for k, v in spec.childs.items():
-            subparser = make_parser_from_spec(v)
+            subparser = make_parser_from_spec(lookup_primparser, v)
             if type(v) == Value:
                 p = space_and_then(subparser)
             else:
                 p = newline_and_then(subparser)
         return make_list_parser(p)
     elif typ == Dict:
-        key_parser = make_parser_from_spec(spec.childs['_key_'])
-        val_parser = make_parser_from_spec(spec.childs['_val_'])
+        key_parser = make_parser_from_spec(lookup_primparser, spec.childs['_key_'])
+        val_parser = make_parser_from_spec(lookup_primparser, spec.childs['_val_'])
         return make_dict_parser(key_parser, val_parser)
 
     assert False  # missing case
