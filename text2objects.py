@@ -1,6 +1,6 @@
 import re
 
-from datatypes import Value, Struct, Dict
+from datatypes import Value, Struct, List, Dict
 
 
 class ParseException(Exception):
@@ -55,6 +55,16 @@ def parse_identifier(indent, text, i):
         raise make_parse_exc('Identifier expected', text, i)
     i += m.end(0)
     return i, text[start:i]
+
+
+def parse_string(indent, text, i):
+    end = len(text)
+    start = i
+    m = re.match(r'^\[[a-zA-Z 0-9 _-]*\]', text[i:])
+    if m is None:
+        raise make_parse_exc('String [in square bracket style] expected but found %s' %(text[i:],), text, i)
+    i += m.end(0)
+    return i, text[start+1:i-1]
 
 
 def parse_int(indent, text, i):
@@ -168,7 +178,15 @@ def make_parser_from_spec(spec):
     typ = type(spec)
 
     if typ == Value:
-        return parse_int
+        # XXX: just to be able to test other code while it is developped
+        if spec.primtype == 'Int':
+            return parse_int
+        elif spec.primtype == 'String':
+            return parse_string
+        elif spec.primtype.endswith('ID'):
+            return parse_identifier
+        else:
+            assert False
     elif typ == Struct:
         dct = {}
         for k, v in spec.childs.items():
@@ -178,6 +196,15 @@ def make_parser_from_spec(spec):
             else:
                 dct[k] = newline_and_then(subparser)
         return make_struct_parser(dct)
+    elif typ == List:
+        val_parser = make_parser_from_spec(spec.childs['_val_'])
+        for k, v in spec.childs.items():
+            subparser = make_parser_from_spec(v)
+            if type(v) == Value:
+                p = space_and_then(subparser)
+            else:
+                p = newline_and_then(subparser)
+        return make_list_parser(p)
     elif typ == Dict:
         key_parser = make_parser_from_spec(spec.childs['_key_'])
         val_parser = make_parser_from_spec(spec.childs['_val_'])

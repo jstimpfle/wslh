@@ -301,9 +301,9 @@ def parse_spec(wslschema, spec):
     lookup_type = make_type_lookup(wslschema)
 
     parsed_lines = parse_lines(spec.splitlines())
-    _, bar = parse_tree(lookup_type, parsed_lines)
+    _, tree = parse_tree(lookup_type, parsed_lines)
 
-    return bar
+    return Struct(tree, None)
 
 
 def testit():

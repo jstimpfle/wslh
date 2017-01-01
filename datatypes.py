@@ -10,7 +10,7 @@ class Value:
         if self.query is not None:
             return 'for %s Value %s' %(self.query, self.variable)
         else:
-            return 'Value %s' %(self.variable,)
+            return 'Value %s (type %s)' %(self.variable, self.primtype)
 
 
 class Struct:

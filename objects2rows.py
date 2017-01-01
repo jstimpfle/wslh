@@ -62,6 +62,8 @@ def todb_struct(cols, rows, objs, spec, database):
         for obj in objs:
             assert obj is not None
             for key in spec.childs:
+                if key not in obj:
+                    raise ValueError('Expected member "%s" but got object with these keys: %s' %(key, ', '.join(str(k) for k in obj.keys())))
                 nextobjs[key].append(obj[key])
     for key in spec.childs:
         todb(nextcols, nextrows, nextobjs[key], spec.childs[key], database)

@@ -8,14 +8,6 @@ import objects2rows
 import text2objects
 
 
-a = Value('a', None, 'Int')
-b = Value('b', None, 'Int')
-c = Value('c', None, 'Int')
-d = Value('d', None, 'Int')
-s = Struct({ 'a': a, 'b': b }, Query(('a', 'b'), 'foo', ('a', 'b', 'c')))
-s2 = Struct({ 'c': c, 'd': d, 's': s }, None)
-lst = Dict({ '_key_': c, '_val_': s2 }, Query(('c', 'd'), 'bar', ('c', 'd')))
-
 myschema = wsl.parse_schema("""
 DOMAIN Int Int
 TABLE foo Int Int Int
@@ -41,27 +33,30 @@ mydatabase = {
 }
 
 myobject = {
-    3: { 'c': 3, 'd': 666, 's': { 'a': 1, 'b': 2 } },
-    6: { 'c': 6, 'd': 1024, 's': { 'a': 4, 'b': 5 } },
-    42: { 'c': 42, 'd': 0, 's': None }
+    'foos': {
+        3: { 'c': 3, 'd': 666, 's': { 'a': 1, 'b': 2 } },
+        6: { 'c': 6, 'd': 1024, 's': { 'a': 4, 'b': 5 } },
+        42: { 'c': 42, 'd': 0, 's': None }
+    }
 }
 
 mytext = """\
-value 3
-    c 3
-    d 666
-    s
-        a 1
-        b 2
-value 6
-    c 6
-    d 1024
-    s
-        a 4
-        b 5
-value 42
-    c 42
-    d 0
+foos
+    value 3
+        c 3
+        d 666
+        s
+            a 1
+            b 2
+    value 6
+        c 6
+        d 1024
+        s
+            a 4
+            b 5
+    value 42
+        c 42
+        d 0
 """
 
 
@@ -84,7 +79,7 @@ def test_rows2objects():
             print(row)
         print()
 
-    [(topobject, subobject)] = rows2objects.rows2objects(lst, mydatabase)
+    [(topobject, subobject)] = rows2objects.rows2objects(myspec, mydatabase)
 
     assert topobject is None
     assert isinstance(subobject, dict)
@@ -106,7 +101,7 @@ def test_objects2rows():
     print('========')
     print(json_repr(myobject))
 
-    database = objects2rows.objects2rows([myobject], lst)
+    database = objects2rows.objects2rows([myobject], myspec)
 
     print()
     print('RESULTS')
@@ -128,7 +123,7 @@ def test_text2objects():
     print('=========================')
     print()
 
-    theparser = text2objects.make_parser_from_spec(lst)
+    theparser = text2objects.make_parser_from_spec(myspec)
 
     objects = text2objects.doparse(theparser, mytext)
 
