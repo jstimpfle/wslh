@@ -211,7 +211,9 @@ def parse_lines(lines):
     return [parse_line(line) for line in iter_lines(lines) if line]
 
 
-def parse_tree(lines, li=None, curindent=None):
+def parse_tree(lookup_type, lines, primtypes=None, li=None, curindent=None):
+    if primtypes is None:
+        primtypes = {}
     if li is None:
         li = 0
     if curindent is None:
@@ -226,9 +228,22 @@ def parse_tree(lines, li=None, curindent=None):
         if indent > curindent:
             raise ParseError('Wrong amount of indentation (need %d) at %s' %(curindent, line.desc()))
 
+        def infer_types(query):
+            for i, v in enumerate(query.variables):
+                typ = lookup_type(query.table, i)
+                if v in query.freshvariables:
+                    primtypes[v] = typ
+                elif v not in primtypes:
+                    assert False
+                elif primtypes[v] != typ:
+                    raise ParseError('Type mismatch: Usage of variable "%s" in this place of the query requires type "%s", but it was inferred to be of type "%s"' %(membervariable, typ, primtypes[v]))
+
+        if query is not None:
+            infer_types(query)
+
         if membertype in ["struct", "set", "list", "dict"]:
             assert membervariable is None
-            li, childs = parse_tree(lines, li+1, curindent + 4)
+            li, childs = parse_tree(lookup_type, lines, primtypes, li+1, curindent + 4)
 
             if membertype == "struct":
                 for x in childs.keys():
@@ -255,10 +270,16 @@ def parse_tree(lines, li=None, curindent=None):
             assert membervariable is not None
 
             if membertype == "value":
-                spec = Value(membervariable, query)
+                if membervariable not in primtypes:
+                    raise ParseError('At %s: Variable not in scope: "%s"' %(line.desc(), membervariable))
+
+                spec = Value(membervariable, query, primtypes[membervariable])
 
             elif membertype == "reference":
-                spec = membervariable  # XXX
+                raise NotImplementedError()
+
+            else:
+                assert False
 
             li += 1
 
@@ -266,21 +287,55 @@ def parse_tree(lines, li=None, curindent=None):
     return li, tree
 
 
+def make_type_lookup(wslschema):
+    def lookup_type(tablename, col_index_0based):
+        table = wslschema.tables.get(tablename)
+        if table is not None and len(table.columns) > col_index_0based:
+            return table.columns[col_index_0based]
+    return lookup_type
+
+
+def parse_spec(wslschema, spec):
+    assert isinstance(spec, str)
+
+    lookup_type = make_type_lookup(wslschema)
+
+    parsed_lines = parse_lines(spec.splitlines())
+    _, bar = parse_tree(lookup_type, parsed_lines)
+
+    return bar
+
+
 def testit():
+    import wsl
+    wslschema = wsl.parse_schema("""\
+DOMAIN PID ID
+DOMAIN CID ID
+DOMAIN String String
+TABLE Person PID String String String
+TABLE Course CID String
+TABLE Tutor PID CID
+TABLE Lecturer PID CID
+REFERENCE TutorPid Tutor pid * => Person pid * * *
+REFERENCE TutorCid Tutor * cid => Course cid *
+REFERENCE LecturerPid Tutor pid * => Person pid * * *
+REFERENCE LecturerCid Tutor * cid => Course cid *
+""")
+
+    lookup_type = make_type_lookup(wslschema)
+
     spec = """\
 Person: dict for (pid fn ln abbr) (Person pid fn ln abbr)
     _key_: value pid
     _val_: struct
         id: value pid
         firstname: value fn
-        lastname: value bl
+        lastname: value ln
         abbr: value abbr
-        lecturing: dict for (cid) (Lecturer pid cid)
-            _key_: value cid
-            _val_: reference Course[cid]
-        tutoring: dict for (cid) (Tutor pid cid)
-            _key_: value cid
-            _val_: reference Course[cid]
+        lecturing: list for (cid) (Lecturer pid cid)
+            _val_: value cid
+        tutoring: list for (cid) (Tutor pid cid)
+            _val_: value cid
 
 Course: dict for (cid name) (Course cid name)
     _key_: value cid
@@ -288,9 +343,9 @@ Course: dict for (cid name) (Course cid name)
         id: value cid
         name: value name
         lecturer: list for (pid) (Lecturer pid cid)
-            _val_: reference Person[pid]
+            _val_: value pid
         tutor: list for (pid) (Tutor pid cid)
-            _val_: reference Person[pid]
+            _val_: value pid
 
 Tutor: set for (pid cid) (Tutor pid cid)
     _val_: struct
@@ -309,7 +364,7 @@ Lecturer: set for (pid cid) (Lecturer pid cid)
     print(parsed_lines)
     print()
 
-    _, bar = parse_tree(parsed_lines)
+    _, bar = parse_tree(lookup_type, parsed_lines)
     print('Tree:')
     print()
     print(bar)

@@ -1,9 +1,10 @@
 class Value:
-    def __init__(self, variable, query):
+    def __init__(self, variable, query, primtype):
         assert variable is not None
         assert isinstance(variable, str)
         self.variable = variable
         self.query = query
+        self.primtype = primtype
 
     def __repr__(self):
         if self.query is not None:

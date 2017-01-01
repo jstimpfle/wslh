@@ -1,18 +1,39 @@
 import json
 
+import wsl
 from datatypes import Value, Struct, List, Dict, Query
+import parse
 import rows2objects
 import objects2rows
 import text2objects
 
 
-a = Value('a', None)
-b = Value('b', None)
-c = Value('c', None)
-d = Value('d', None)
+a = Value('a', None, 'Int')
+b = Value('b', None, 'Int')
+c = Value('c', None, 'Int')
+d = Value('d', None, 'Int')
 s = Struct({ 'a': a, 'b': b }, Query(('a', 'b'), 'foo', ('a', 'b', 'c')))
 s2 = Struct({ 'c': c, 'd': d, 's': s }, None)
 lst = Dict({ '_key_': c, '_val_': s2 }, Query(('c', 'd'), 'bar', ('c', 'd')))
+
+myschema = wsl.parse_schema("""
+DOMAIN Int Int
+TABLE foo Int Int Int
+TABLE bar Int Int
+REFERENCE foobar foo * * c => bar c *
+""")
+
+myspec = parse.parse_spec(myschema, """\
+foos: dict for (c d) (bar c d)
+    _key_: value c
+    _val_: struct
+        c: value c
+        d: value d
+        s: struct for (a b) (foo a b c)
+            a: value a
+            b: value b
+""")
+print(myspec)
 
 mydatabase = {
     'foo': [(1, 2, 3), (4, 5, 6)], 
