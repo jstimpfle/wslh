@@ -201,12 +201,10 @@ def make_parser_from_spec(lookup_primparser, spec, indent=None):
 
     elif typ == List:
         val_parser = make_parser_from_spec(lookup_primparser, spec.childs['_val_'], nextindent)
-        for k, v in spec.childs.items():
-            subparser = make_parser_from_spec(lookup_primparser, v, nextindent)
-            if type(v) == Value:
-                p = space_and_then(subparser)
-            else:
-                p = newline_and_then(subparser)
+        if type(spec.childs['_val_']) == Value:
+            p = space_and_then(val_parser)
+        else:
+            p = newline_and_then(val_parser)
         return make_list_parser(p, indent)
 
     elif typ == Dict:
