@@ -129,17 +129,14 @@ def make_keyvalue_parser(keyparser, valueparser):
 def make_struct_parser(dct, indent):
     def struct_parser(text, i):
         i, items = parse_block(dct, indent, text, i)
-        wantkeys = set(dct.keys())
-        havekeys = set(k for k, v in items)
-        invalid = havekeys.difference(wantkeys)
         struct = {}
         for k, v in items:
-            if k not in wantkeys:
+            if k not in dct.keys():
                 raise make_parse_exc('Invalid key: %s' %(k,), text, i)
             if k in items:
                 raise make_parse_exc('Duplicate key: %s' %(k,), text, i)
             struct[k] = v
-        for k in wantkeys:
+        for k in dct.keys():
             struct.setdefault(k, None)
         return i, struct
     return struct_parser
