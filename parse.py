@@ -64,7 +64,7 @@ def parse_keyword(line, i, keyword, desc):
     except ParseError as e:
         raise ParseError('Expected "%s" at %s' %(typedesc, line.desc(i)))
     if kw != keyword:
-        raise ParseError('Expected "%s" but found identifier "%s" at "%s"', desc, kw, line.desc(i))
+        raise ParseError('Expected "%s" but found identifier "%s" at "%s"' %(desc, kw, line.desc(i)))
     return i
 
 
@@ -75,7 +75,7 @@ def parse_index(line, i):
         i, name = parse_variable(line, i)
         i = parse_sequence(line, i, ']', 'closing bracket "]"')
     except ParseError as e:
-        raise ParseError('Expected bracketed index expression at %s' %(line.desc(i))) from e
+        raise ParseError('Expected bracketed index expression at %s' %(line.desc(i),)) from e
     return i, name
 
 
@@ -87,7 +87,7 @@ def parse_identifier_list(line, i, empty_allowed):
     while i < end:
         if line[i] == ')':
             if not vs and not empty_allowed:
-                raise ParseError('Empty identifier list not allowed at %s' %(line.desc(i)))
+                raise ParseError('Empty identifier list not allowed at %s' %(line.desc(i),))
             break
         if vs:
             i = parse_space(line, i)
@@ -173,7 +173,7 @@ def parse_line(line):
     try:
         i, membername = parse_identifier(line, i)
     except ParseError as e:
-        raise ParseError('Expected a "member: declaration" line at %s' %(line.desc())) from e
+        raise ParseError('Expected a "member: declaration" line at %s' %(line.desc(),)) from e
 
     i = parse_sequence(line, i, ':', '":" after member name')
     i = parse_space(line, i)
@@ -181,20 +181,20 @@ def parse_line(line):
     try:
         i, membertype = parse_member_type(line, i)
     except ParseError as e:
-        raise ParseError('Failed to parse member type at %s' %(line.desc(i))) from e
+        raise ParseError('Failed to parse member type at %s' %(line.desc(i),)) from e
 
     if membertype in ["value", "option"]:
         i = parse_space(line, i)
         try:
             i, membervariable = parse_identifier(line, i)
         except ParseError as e:
-            raise ParseError('Failed to parse member variable at %s' %(line.desc(i))) from e
+            raise ParseError('Failed to parse member variable at %s' %(line.desc(i),)) from e
     elif membertype in ["reference"]:
         i = parse_space(line, i)
         try:
             i, membervariable = parse_member_variable(line, i)
         except ParseError as e:
-            raise ParseError('Failed to parse member variable at %s' %(line.desc(i))) from e
+            raise ParseError('Failed to parse member variable at %s' %(line.desc(i),)) from e
     else:
         membervariable = None
 
