@@ -7,9 +7,8 @@ INDENTSPACES = 4
 
 
 class ParseException(Exception):
-    def __init__(self, msg, text, lineno, charno):
+    def __init__(self, msg, lineno, charno):
         self.msg = msg
-        self.text = text
         self.lineno = lineno
         self.charno = charno
 
@@ -21,7 +20,7 @@ def make_parse_exc(msg, text, i):
     lines = text[:i].split('\n')
     lineno = len(lines)
     charno = i + 1 - sum(len(l) + 1 for l in lines[:-1])
-    return ParseException(msg, text, lineno, charno)
+    return ParseException(msg, lineno, charno)
 
 
 def parse_space(text, i):
