@@ -65,7 +65,7 @@ bars
 
 
 def json_repr(x):
-    return json.dumps(x, sort_keys=True, indent=2)
+    return json.dumps(x, sort_keys=True, indent=2, ensure_ascii=False)
 
 
 def test_rows2objects():
